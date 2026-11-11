@@ -1,0 +1,50 @@
+# Copy as-is. Rescans published images weekly with the latest signatures.
+name: ClamAV weekly rescan
+
+on:
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: "Image tags to scan (default: main + latest v* tag)"
+        required: false
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  rescan:
+    name: Rescan published images for malware (ClamAV)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Scan images
+        env:
+          TAGS: ${{ inputs.tags }}
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          tags="${TAGS:-main $(git tag -l 'v*' --sort=-v:refname | head -1)}"
+          rc=0
+          for t in $tags; do
+            echo "::group::$image:$t"
+            if docker pull -q "$image:$t" && docker export "$(docker create "$image:$t")" | bash .github/clamav-scan.sh; then
+              echo "$image:$t clean"
+            else
+              echo "::error::$image:$t failed the malware scan"; rc=1
+            fi
+            echo "::endgroup::"
+          done
+          exit $rc

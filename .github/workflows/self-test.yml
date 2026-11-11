@@ -1,0 +1,58 @@
+# Checks that the scanner catches EICAR. Not needed in other repos.
+name: Self-test
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ${{ matrix.case }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { case: image-clean, target: image, eicar: none, expect: 0 }
+          - { case: image-eicar, target: image, eicar: plain, expect: 1 }
+          - { case: image-eicar-zip, target: image, eicar: zip, expect: 1 }
+          - { case: image-eicar-nested-tgz, target: image, eicar: nested-tgz, expect: 1 }
+          - { case: repo-clean, target: repo, eicar: none, expect: 0 }
+          - { case: repo-eicar, target: repo, eicar: plain, expect: 1 }
+          - { case: fallback-eicar, target: image, eicar: plain, expect: 1, break_freshclam: true }
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Add EICAR test file
+        if: matrix.eicar != 'none'
+        env:
+          EICAR_B64: WDVPIVAlQEFQWzRcUFpYNTQoUF4pN0NDKTd9JEVJQ0FSLVNUQU5EQVJELUFOVElWSVJVUy1URVNULUZJTEUhJEgrSCo=
+        run: |
+          echo "$EICAR_B64" | base64 -d > /tmp/eicar.com
+          (cd /tmp && zip -q eicar.zip eicar.com && tar -czf eicar.tgz eicar.zip)
+          case "${{ matrix.eicar }}" in
+            plain) cp /tmp/eicar.com app/ ;;
+            zip) cp /tmp/eicar.zip app/ ;;
+            nested-tgz) cp /tmp/eicar.tgz app/ ;;
+          esac
+
+      - name: Scan
+        env:
+          FRESHCLAM_OPTS: ${{ matrix.break_freshclam && '--config-file=/nonexistent' || '' }}
+        run: |
+          if [ "${{ matrix.target }}" = image ]; then
+            docker build -q -t self-test -f docker/Dockerfile .
+            set +e; docker export "$(docker create self-test)" | bash .github/clamav-scan.sh | tee scan.log; rc=${PIPESTATUS[1]}; set -e
+          else
+            set +e; tar -cf - --exclude=./.git . | bash .github/clamav-scan.sh | tee scan.log; rc=${PIPESTATUS[1]}; set -e
+          fi
+          echo "exit code $rc, expected ${{ matrix.expect }}"
+          [ "$rc" = "${{ matrix.expect }}" ]
+          if [ "${{ matrix.break_freshclam }}" = true ]; then grep -q "freshclam failed" scan.log; fi
