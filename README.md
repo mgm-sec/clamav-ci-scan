@@ -57,7 +57,7 @@ Exit codes: `0` clean, `1` malware found, `2` error.
 
 ## Testing
 
-`self-test.yml` runs on every PR and push. It checks that EICAR is caught as a plain file, in a zip, and in a zip inside a tar.gz, both in the image and in the repo. It also checks the fallback when `freshclam` fails, and that clean input passes.
+`self-test.yml` runs on every PR and push. It checks that EICAR is caught in the image (plain file, zip, zip inside a tar.gz) and in the repo. It also checks the fallback when `freshclam` fails, and that clean input passes.
 
 To test the weekly rescan:
 
