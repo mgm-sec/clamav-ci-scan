@@ -1,7 +1,7 @@
 version: 2
 updates:
   - package-ecosystem: docker
-    directories: ["/.github/clamav"]
+    directories: ["/docker"]
     schedule:
       interval: daily
     cooldown:

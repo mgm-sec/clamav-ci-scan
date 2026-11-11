@@ -8,7 +8,7 @@
 # Optional: FRESHCLAM_OPTS adds arguments to freshclam (the self-test uses it).
 set -euo pipefail
 
-image=$(awk '/^FROM/ {print $2; exit}' "$(dirname "$0")/clamav/Dockerfile")
+image=$(awk '/^FROM/ {print $2; exit}' "$(dirname "$0")/../docker/clamav.Dockerfile")
 
 docker run --rm -i -e FRESHCLAM_OPTS --entrypoint sh "$image" -c '
   mkdir /scan && tar -xf - -C /scan &&
