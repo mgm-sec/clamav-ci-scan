@@ -4,3 +4,7 @@ updates:
     directories: ["/.github/clamav"]
     schedule:
       interval: daily
+    cooldown:
+      default-days: 5
+      # ClamAV republishes its tags with new signatures, so they never age past the cooldown.
+      exclude: ["clamav/clamav"]
