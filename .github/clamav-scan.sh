@@ -8,7 +8,9 @@
 # Optional: FRESHCLAM_OPTS adds arguments to freshclam (the self-test uses it).
 set -euo pipefail
 
-docker run --rm -i -e FRESHCLAM_OPTS --entrypoint sh clamav/clamav:1.5.4-debian -c '
+image=$(awk '/^FROM/ {print $2; exit}' "$(dirname "$0")/clamav/Dockerfile")
+
+docker run --rm -i -e FRESHCLAM_OPTS --entrypoint sh "$image" -c '
   mkdir /scan && tar -xf - -C /scan &&
   { freshclam --stdout $FRESHCLAM_OPTS || echo "::warning::freshclam failed, scanning with bundled signatures"; } &&
   clamscan --version &&
