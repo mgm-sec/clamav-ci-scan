@@ -12,7 +12,11 @@ Each scan fails the job when something is found.
 
 ## Add it to a repo
 
-1. Copy `.github/clamav-scan.sh` and `.github/workflows/clamav-rescan.yml` as they are.
+1. Copy these files as they are:
+
+   - `.github/clamav-scan.sh`
+   - `.github/workflows/clamav-rescan.yml`
+   - `docker/clamav.Dockerfile` (only pins the ClamAV image, nothing is built from it)
 
 2. Add a job to `ci.yaml`:
 
@@ -41,7 +45,19 @@ Each scan fails the job when something is found.
 
    The image must be built with `load: true`.
 
-4. If the image job uses `tj-actions/changed-files`, add `.github/clamav-scan.sh` to its file list.
+4. If the image job uses `tj-actions/changed-files`, add `.github/clamav-scan.sh` and `docker/clamav.Dockerfile` to its file list.
+
+5. Make sure the `docker` entry in `dependabot.yml` covers `/docker`, and exclude ClamAV from the cooldown:
+
+   ```yaml
+     - package-ecosystem: docker
+       directories: ["/", "/docker"]
+       cooldown:
+         default-days: 5
+         exclude: ["clamav/clamav"]
+   ```
+
+   ClamAV republishes its tags with new signatures every few days, so a new version never gets older than the cooldown and Dependabot keeps skipping it.
 
 See `.github/workflows/ci.yaml` for a complete example.
 
@@ -72,7 +88,7 @@ No EICAR file is stored in this repo. The tests decode it from base64 at runtime
 
 ## Good to know
 
-- Dependabot does not update `clamav/clamav:1.5.4-debian`, because it sits in a shell script. Bump it by hand.
+- The ClamAV pin lives in `docker/`, not `.github/`. Under `.github/` Dependabot found the update but failed to open the PR.
 - A failed scheduled run notifies the person who last changed the cron line, not a team.
 - GitHub disables scheduled workflows in public repos after 60 days without activity.
 - Trivy looks for known vulnerabilities, not malware. You need both.
